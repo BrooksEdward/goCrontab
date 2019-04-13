@@ -2,7 +2,6 @@ package master
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 )
 
@@ -12,6 +11,7 @@ type Config struct {
 	ApiWriteTimeout int      `json:"apiWriteTimeout"` //apiserver http服务写超时时间
 	EtcdEndPoints   []string `json:"etcdEndPoints"`
 	EtcdDialTimeout int      `json:"etcdDialTimeout"`
+	WebRoot         string   `json:"webroot"`
 }
 
 var G_conf *Config
@@ -32,7 +32,6 @@ func InitConfig(confFile string) (err error) {
 	if err != nil {
 		return
 	}
-	fmt.Println(*conf)
 
 	// 赋值单例
 	G_conf = conf

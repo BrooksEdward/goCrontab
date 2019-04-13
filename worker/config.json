@@ -1,0 +1,10 @@
+{
+  "Etcd集群地址": "多个地址做高可用",
+  "etcdEndPoints": ["192.168.100.126:2379"],
+
+  "Etcd连接超时时间": "单位毫秒",
+  "etcdDialTimeout": 5000,
+
+  "bash路径": "使用绝对路径",
+  "bashPath": ["C:\\Program Files\\Git\\bin\\sh.exe", "-c"]
+}

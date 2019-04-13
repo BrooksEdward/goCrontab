@@ -3,7 +3,7 @@ package master
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/goCrontab/common"
+	"github.com/caiguangyin/goCrontab/common"
 	"net"
 	"net/http"
 	"strconv"
@@ -46,6 +46,8 @@ func handleJobSave(resp http.ResponseWriter, req *http.Request) {
 	bytes, err = common.BuildResponse(0, "success", oldJob)
 	if err == nil {
 		resp.Write(bytes)
+	} else {
+		resp.Write([]byte("构建响应时出错！"))
 	}
 
 	return
@@ -55,6 +57,8 @@ ERR:
 	bytes, err = common.BuildResponse(-1, err.Error(), nil)
 	if err == nil {
 		resp.Write(bytes)
+	} else {
+		resp.Write([]byte("构建响应时出错！"))
 	}
 }
 
@@ -62,34 +66,29 @@ ERR:
 func handleJobDelete(resp http.ResponseWriter, req *http.Request) {
 	var (
 		err     error
-		postJob string
-		job     common.Job
+		jobName string
 		oldJob  *common.Job
 		bytes   []byte
 	)
 
 	if err = req.ParseForm(); err != nil {
-		fmt.Println(1)
 		goto ERR
 	}
 	// 获取任务
-	postJob = req.PostForm.Get("job")
-	if err = json.Unmarshal([]byte(postJob), &job); err != nil {
-		fmt.Println(2)
-		goto ERR
-	}
+	jobName = req.PostForm.Get("jobname")
 
 	// 从etcd中删除任务
-	oldJob, err = G_jobMgr.JobDelete(&job)
+	oldJob, err = G_jobMgr.JobDelete(jobName)
 	if err != nil {
-		fmt.Println(3)
 		goto ERR
 	}
 
-	// 构建响应
+	// 构建正常响应
 	bytes, err = common.BuildResponse(0, "success", oldJob)
 	if err == nil {
 		resp.Write(bytes)
+	} else {
+		resp.Write([]byte("构建响应时出错！"))
 	}
 
 	return
@@ -98,25 +97,30 @@ ERR:
 	bytes, err = common.BuildResponse(-1, err.Error(), nil)
 	if err == nil {
 		resp.Write(bytes)
+	} else {
+		resp.Write([]byte("构建响应时出错！"))
 	}
 }
 
-// 查看所有任务
+// 获取任务列表
 func handleJobList(resp http.ResponseWriter, req *http.Request) {
 	var (
-		err	error
+		err     error
 		jobList []*common.Job
-		bytes []byte
+		bytes   []byte
 	)
 	// 获取任务列表
 	jobList, err = G_jobMgr.JobList()
 	if err != nil {
 		goto ERR
 	}
+
 	// 构建任务列表响应
 	bytes, err = common.BuildResponse(0, "success", jobList)
 	if err == nil {
 		resp.Write(bytes)
+	} else {
+		resp.Write([]byte("构建响应时出错！"))
 	}
 
 	return
@@ -124,15 +128,53 @@ ERR:
 	bytes, err = common.BuildResponse(-1, err.Error(), nil)
 	if err == nil {
 		resp.Write(bytes)
+	} else {
+		resp.Write([]byte("构建响应时出错！"))
+	}
+}
+
+//强制 Kill task
+func handleJobKill(resp http.ResponseWriter, req *http.Request) {
+	var (
+		err     error
+		jobName string
+		bytes   []byte
+	)
+
+	if err = req.ParseForm(); err != nil {
+		goto ERR
+	}
+
+	jobName = req.PostForm.Get("jobname")
+	if err = G_jobMgr.JobKill(jobName); err != nil {
+		goto ERR
+	}
+
+	bytes, err = common.BuildResponse(0, "success", nil)
+	if err == nil {
+		resp.Write(bytes)
+	} else {
+		resp.Write([]byte("构建响应时出错！"))
+	}
+
+	return
+ERR:
+	bytes, err = common.BuildResponse(-1, err.Error(), nil)
+	if err == nil {
+		resp.Write(bytes)
+	} else {
+		resp.Write([]byte("构建响应时出错！"))
 	}
 }
 
 // 初始化服务
 func InitApiServer() (err error) {
 	var (
-		httpServer *http.Server
-		mux        *http.ServeMux
-		listener   net.Listener
+		httpServer    *http.Server
+		mux           *http.ServeMux
+		listener      net.Listener
+		staticDir     http.Dir
+		staticHandler http.Handler
 	)
 
 	//配置路由
@@ -140,6 +182,12 @@ func InitApiServer() (err error) {
 	mux.HandleFunc("/job/save", handleJobSave)
 	mux.HandleFunc("/job/del", handleJobDelete)
 	mux.HandleFunc("/job/list", handleJobList)
+	mux.HandleFunc("/job/kill", handleJobKill)
+	// 静态文件路由处理
+	staticDir = http.Dir(G_conf.WebRoot)
+	staticHandler = http.FileServer(staticDir)
+	mux.Handle("/", staticHandler)
+	//mux.Handle("/", http.StripPrefix("/", staticHandler))
 
 	//启动TCP监听
 	listener, err = net.Listen("tcp", ":"+strconv.Itoa(G_conf.ApiPort))
@@ -160,6 +208,7 @@ func InitApiServer() (err error) {
 
 	// 启动服务
 	go httpServer.Serve(listener)
+	fmt.Println("启动apiserver: ", listener.Addr())
 
 	return
 }

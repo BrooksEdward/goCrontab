@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/goCrontab/master"
+	"github.com/caiguangyin/goCrontab/master"
 	"runtime"
 	"time"
 )
@@ -41,6 +41,7 @@ func main() {
 	if err = master.InitJobMgr(); err != nil {
 		goto END
 	}
+	defer master.G_jobMgr.Client.Close()
 
 	//初始化Api服务
 	if err = master.InitApiServer();err != nil {
@@ -50,6 +51,7 @@ func main() {
 	for {
 		time.Sleep(time.Second)
 	}
+
 	return
 END:
 	fmt.Println(err)
